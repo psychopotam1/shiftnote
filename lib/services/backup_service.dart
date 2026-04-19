@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
 class BackupService {
@@ -9,25 +10,16 @@ class BackupService {
 
   Future<Directory> _getBackupDirectory() async {
     if (Platform.isIOS) {
-      // iOS: сохраняем в Documents приложения.
-      // Эта папка может быть видна в Files:
-      // "On My iPhone/iPad" -> "ShiftNote"
       return getApplicationDocumentsDirectory();
     }
 
     if (Platform.isAndroid) {
-      // Android: пытаемся сохранить во внешнюю папку Documents/ShiftNote.
       final Directory? baseDir = await getExternalStorageDirectory();
 
       if (baseDir == null) {
-        // Фолбэк, если внешняя папка недоступна.
         return getApplicationDocumentsDirectory();
       }
 
-      // Обычно baseDir выглядит примерно так:
-      // /storage/emulated/0/Android/data/<package>/files
-      //
-      // Поднимаемся вверх до /storage/emulated/0
       final String rootPath = baseDir.path.split('/Android/').first;
       final Directory documentsDir =
       Directory('$rootPath/Documents/$_androidFolderName');
@@ -39,7 +31,6 @@ class BackupService {
       return documentsDir;
     }
 
-    // Фолбэк для других платформ.
     return getApplicationDocumentsDirectory();
   }
 
@@ -80,6 +71,45 @@ class BackupService {
     }
 
     final decoded = jsonDecode(raw);
+
+    if (decoded is Map<String, dynamic>) {
+      final data = decoded['data'];
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+
+      return decoded;
+    }
+
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> importBackupFromFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+      withData: true,
+    );
+
+    if (result == null || result.files.isEmpty) {
+      return null;
+    }
+
+    final pickedFile = result.files.single;
+
+    String? content;
+
+    if (pickedFile.bytes != null) {
+      content = utf8.decode(pickedFile.bytes!);
+    } else if (pickedFile.path != null) {
+      content = await File(pickedFile.path!).readAsString();
+    }
+
+    if (content == null || content.trim().isEmpty) {
+      return null;
+    }
+
+    final decoded = jsonDecode(content);
 
     if (decoded is Map<String, dynamic>) {
       final data = decoded['data'];

@@ -167,6 +167,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _importBackup() async {
+    try {
+      final backupService = BackupService();
+      final Map<String, dynamic>? data =
+      await backupService.importBackupFromFile();
+
+      if (data == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Backup file was not selected')),
+        );
+        return;
+      }
+
+      final dynamic shiftsService = ShiftsService();
+
+      await shiftsService.clearAll();
+
+      for (final entry in data.entries) {
+        await shiftsService.saveShiftFromMap(entry.key, entry.value);
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backup restored')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Import failed: $e')),
+      );
+    }
+  }
+
   Future<void> _buy() async {
     try {
       await _proService.buyPro();
@@ -635,10 +671,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              SoftGlassButton(
-                                label: 'Backup now',
-                                icon: Icons.save_rounded,
-                                onTap: _backupNow,
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: SoftGlassButton(
+                                      label: 'Backup',
+                                      icon: Icons.save_rounded,
+                                      onTap: _backupNow,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: SoftGlassButton(
+                                      label: 'Import',
+                                      icon: Icons.upload_rounded,
+                                      onTap: _importBackup,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

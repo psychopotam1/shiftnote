@@ -241,4 +241,19 @@ class ShiftsService {
     raw.remove(_dateKey(date));
     await _saveRaw(raw);
   }
+
+  // 👇 ВСТАВЛЯЕШЬ ВОТ ЭТО
+  Future<void> clearAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_storageKey);
+  }
+
+  Future<void> saveShiftFromMap(String key, dynamic data) async {
+    final raw = await _loadRaw();
+
+    if (data is Map<String, dynamic>) {
+      raw[key] = data;
+      await _saveRaw(raw);
+    }
+  }
 }
