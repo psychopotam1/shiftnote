@@ -5,9 +5,46 @@ import 'package:path_provider/path_provider.dart';
 
 class BackupService {
   static const String _fileName = 'shiftnote_backup.json';
+  static const String _androidFolderName = 'ShiftNote';
+
+  Future<Directory> _getBackupDirectory() async {
+    if (Platform.isIOS) {
+      // iOS: сохраняем в Documents приложения.
+      // Эта папка может быть видна в Files:
+      // "On My iPhone/iPad" -> "ShiftNote"
+      return getApplicationDocumentsDirectory();
+    }
+
+    if (Platform.isAndroid) {
+      // Android: пытаемся сохранить во внешнюю папку Documents/ShiftNote.
+      final Directory? baseDir = await getExternalStorageDirectory();
+
+      if (baseDir == null) {
+        // Фолбэк, если внешняя папка недоступна.
+        return getApplicationDocumentsDirectory();
+      }
+
+      // Обычно baseDir выглядит примерно так:
+      // /storage/emulated/0/Android/data/<package>/files
+      //
+      // Поднимаемся вверх до /storage/emulated/0
+      final String rootPath = baseDir.path.split('/Android/').first;
+      final Directory documentsDir =
+      Directory('$rootPath/Documents/$_androidFolderName');
+
+      if (!await documentsDir.exists()) {
+        await documentsDir.create(recursive: true);
+      }
+
+      return documentsDir;
+    }
+
+    // Фолбэк для других платформ.
+    return getApplicationDocumentsDirectory();
+  }
 
   Future<File> _getBackupFile() async {
-    final directory = await getApplicationDocumentsDirectory();
+    final directory = await _getBackupDirectory();
     return File('${directory.path}/$_fileName');
   }
 

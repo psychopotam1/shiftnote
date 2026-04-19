@@ -67,5 +67,11 @@
 
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>The app may access your photo library to let you select files.</string>
+
+	<key>UIFileSharingEnabled</key>
+	<true/>
+
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>
