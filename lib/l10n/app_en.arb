@@ -162,5 +162,6 @@
     "batchLocation": "Location",
     "batchNotes": "Notes",
     "batchChooseShiftDurationFirst": "Choose shift duration first",
-    "applyToSelectedDays": "Apply to selected days"
+    "applyToSelectedDays": "Apply to selected days",
+    "template": "Template"
 }

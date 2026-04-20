@@ -116,7 +116,15 @@ class _MonthScreenState extends State<MonthScreen> {
 
       final ShiftEntry? saved = savedShifts[key];
       if (saved == null) {
-        return entry;
+        return DayEntry(
+          date: entry.date,
+          type: DayCellType.empty,
+          hoursLabel: '',
+          overtimeLabel: '',
+          amountLabel: '',
+          projectName: '',
+          paymentStatus: null,
+        );
       }
 
       if (saved.isDayOff) {
@@ -731,7 +739,7 @@ class _MonthScreenState extends State<MonthScreen> {
                         child: Row(
                           children: <Widget>[
                             GlassActionChip(
-                              label: 'Template',
+                              label: l10n.template,
                               icon: Icons.edit_calendar_rounded,
                               onTap: _openBatchTemplate,
                             ),

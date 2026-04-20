@@ -162,5 +162,6 @@
     "batchLocation": "Локація",
     "batchNotes": "Нотатки",
     "batchChooseShiftDurationFirst": "Спочатку виберіть тривалість зміни",
-    "applyToSelectedDays": "Застосувати до вибраних днів"
+    "applyToSelectedDays": "Застосувати до вибраних днів",
+    "template": "Шаблон"
 }

@@ -1029,6 +1029,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Apply to selected days'**
   String get applyToSelectedDays;
+
+  /// No description provided for @template.
+  ///
+  /// In en, this message translates to:
+  /// **'Template'**
+  String get template;
 }
 
 class _AppLocalizationsDelegate

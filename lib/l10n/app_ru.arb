@@ -162,6 +162,7 @@
     "batchLocation": "Локация",
     "batchNotes": "Заметки",
     "batchChooseShiftDurationFirst": "Сначала выберите длительность смены",
-    "applyToSelectedDays": "Применить к выбранным дням"
+    "applyToSelectedDays": "Применить к выбранным дням",
+    "template": "Шаблон"
 
 }

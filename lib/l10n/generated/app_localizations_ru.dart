@@ -480,4 +480,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get applyToSelectedDays => 'Применить к выбранным дням';
+
+  @override
+  String get template => 'Шаблон';
 }

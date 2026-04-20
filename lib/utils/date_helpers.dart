@@ -166,63 +166,19 @@ class DateHelpers {
 
     for (int day = 1; day <= totalDays; day++) {
       final date = DateTime(start.year, start.month, day);
-      result.add(_sampleEntryForDate(date));
+      result.add(
+        DayEntry(
+          date: date,
+          type: DayCellType.empty,
+          hoursLabel: '',
+          overtimeLabel: '',
+          amountLabel: '',
+          projectName: '',
+          paymentStatus: null,
+        ),
+      );
     }
 
     return result;
-  }
-
-  static DayEntry _sampleEntryForDate(DateTime date) {
-    final int day = date.day;
-
-    if (day % 8 == 0) {
-      return DayEntry(
-        date: date,
-        type: DayCellType.shift,
-        hoursLabel: '10h',
-        amountLabel: r'$240',
-      );
-    }
-
-    if (day % 9 == 0) {
-      return DayEntry(
-        date: date,
-        type: DayCellType.overtime,
-        hoursLabel: '14h',
-        overtimeLabel: '+2 OT',
-        amountLabel: r'$320',
-      );
-    }
-
-    if (day % 5 == 0) {
-      return DayEntry(
-        date: date,
-        type: DayCellType.off,
-        hoursLabel: 'OFF',
-      );
-    }
-
-    if (day % 4 == 0) {
-      return DayEntry(
-        date: date,
-        type: DayCellType.planned,
-        hoursLabel: '12h',
-        amountLabel: 'Planned',
-      );
-    }
-
-    if (day % 2 == 0) {
-      return DayEntry(
-        date: date,
-        type: DayCellType.shift,
-        hoursLabel: '12h',
-        amountLabel: r'$280',
-      );
-    }
-
-    return DayEntry(
-      date: date,
-      type: DayCellType.empty,
-    );
   }
 }

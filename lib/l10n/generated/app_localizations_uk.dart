@@ -480,4 +480,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get applyToSelectedDays => 'Застосувати до вибраних днів';
+
+  @override
+  String get template => 'Шаблон';
 }

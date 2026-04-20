@@ -477,4 +477,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get applyToSelectedDays => 'Apply to selected days';
+
+  @override
+  String get template => 'Template';
 }
