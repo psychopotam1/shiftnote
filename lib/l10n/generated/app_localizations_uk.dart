@@ -9,7 +9,7 @@ class AppLocalizationsUk extends AppLocalizations {
   AppLocalizationsUk([String locale = 'uk']) : super(locale);
 
   @override
-  String get appTitle => 'ReelHours';
+  String get appTitle => 'ShiftNote';
 
   @override
   String get settings => 'Налаштування';
