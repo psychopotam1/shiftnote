@@ -37,12 +37,21 @@ class ShiftsService {
 
   Future<void> _saveRaw(Map<String, dynamic> raw) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_storageKey, jsonEncode(raw));
+
+    final saved = await prefs.setString(_storageKey, jsonEncode(raw));
+    if (!saved) {
+      throw Exception('Failed to save shifts locally');
+    }
 
     final isPro = await _proService.isPro();
-    if (isPro) {
+    if (!isPro) return;
+
+    try {
       await _backupService.backupNow(raw);
+    } catch (_) {
+      // Бэкап не должен ломать сохранение
     }
+  
   }
 
   Future<void> saveShift(ShiftEntry shift) async {

@@ -1,8 +1,8 @@
-name: shift
+name: shiftnote
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+16
+version: 1.0.0+18
 
 environment:
   sdk: ^3.10.7
@@ -26,14 +26,28 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.0   # 👈 ДОБАВИЛ
   flutter_lints: ^6.0.0
 
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/app_icon.png"
-  adaptive_icon_background: "#1F2F8F"
+  adaptive_icon_background: "#2B3A8F"
 
+flutter_native_splash:
+  color: "#050D32"
+  image: assets/icon/shiftnote_splash_icon_padded.png
+  branding: assets/icon/splash_branding.png
+
+  android_12:
+    color: "#050D32"
+    image: assets/icon/shiftnote_splash_icon_padded.png
+    icon_background_color: "#050D32"
+    branding: assets/icon/splash_branding.png
+
+  ios: true
+  android: true
 flutter:
   uses-material-design: true
   generate: true

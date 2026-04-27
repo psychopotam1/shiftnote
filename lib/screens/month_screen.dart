@@ -101,7 +101,10 @@ class _MonthScreenState extends State<MonthScreen> {
     });
   }
 
-  Future<void> _loadMonth(DateTime month) async {
+  Future<void> _loadMonth(
+      DateTime month, {
+        bool preserveSelection = false,
+      }) async {
     final visibleMonth = DateHelpers.monthStart(month);
     final sampleDays = DateHelpers.generateSampleMonth(visibleMonth);
     final savedShifts = await _shiftsService.getAllShifts();
@@ -115,6 +118,7 @@ class _MonthScreenState extends State<MonthScreen> {
           '${entry.date.day.toString().padLeft(2, '0')}';
 
       final ShiftEntry? saved = savedShifts[key];
+
       if (saved == null) {
         return DayEntry(
           date: entry.date,
@@ -170,18 +174,28 @@ class _MonthScreenState extends State<MonthScreen> {
       _isPro = isPro;
       _visibleMonth = visibleMonth;
       _gridItems = gridItems;
-      _selectedDays.clear();
-      _selectionMode = false;
+
+      if (!preserveSelection) {
+        _selectedDays.clear();
+        _selectionMode = false;
+      }
+
       _isLoading = false;
     });
   }
 
   Future<void> _goToPreviousMonth() async {
-    await _loadMonth(DateHelpers.previousMonth(_visibleMonth));
+    await _loadMonth(
+      DateHelpers.previousMonth(_visibleMonth),
+      preserveSelection: _selectionMode,
+    );
   }
 
   Future<void> _goToNextMonth() async {
-    await _loadMonth(DateHelpers.nextMonth(_visibleMonth));
+    await _loadMonth(
+      DateHelpers.nextMonth(_visibleMonth),
+      preserveSelection: _selectionMode,
+    );
   }
 
   Future<void> _handleTap(DayEntry entry) async {
@@ -209,6 +223,7 @@ class _MonthScreenState extends State<MonthScreen> {
     setState(() {
       _selectionMode = true;
       final DateTime key = _dateOnly(entry.date);
+
       if (!_selectedDays.any((d) => DateHelpers.isSameDate(d, key))) {
         _selectedDays.add(key);
       }
@@ -391,19 +406,23 @@ class _MonthScreenState extends State<MonthScreen> {
 
   Future<void> _markSelectedPaid() async {
     if (_selectedDays.isEmpty) return;
+
     await _shiftsService.updateShiftStatuses(
       _selectedDays.toList(),
       PaymentStatus.paid,
     );
+
     await _loadMonth(_visibleMonth);
   }
 
   Future<void> _markSelectedUnpaid() async {
     if (_selectedDays.isEmpty) return;
+
     await _shiftsService.updateShiftStatuses(
       _selectedDays.toList(),
       PaymentStatus.unpaid,
     );
+
     await _loadMonth(_visibleMonth);
   }
 
@@ -434,8 +453,10 @@ class _MonthScreenState extends State<MonthScreen> {
 
   bool get _canSelectNext10 {
     if (_selectedDays.length != 1) return false;
+
     final selected = _selectedEntries;
     if (selected.length != 1) return false;
+
     return selected.first.projectName.trim().isNotEmpty;
   }
 
@@ -674,7 +695,8 @@ class _MonthScreenState extends State<MonthScreen> {
                               Text(
                                 '${_selectedDays.length} ${l10n.daysSelected}',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.62),
+                                  color:
+                                  Colors.white.withOpacity(0.62),
                                   fontSize: 14,
                                 ),
                               ),
@@ -685,7 +707,9 @@ class _MonthScreenState extends State<MonthScreen> {
                             CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                DateHelpers.monthTitle(_visibleMonth),
+                                DateHelpers.monthTitle(
+                                  _visibleMonth,
+                                ),
                                 style: const TextStyle(
                                   fontSize: 34,
                                   fontWeight: FontWeight.w800,
@@ -695,9 +719,12 @@ class _MonthScreenState extends State<MonthScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                DateHelpers.monthSubtitle(_visibleMonth),
+                                DateHelpers.monthSubtitle(
+                                  _visibleMonth,
+                                ),
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.62),
+                                  color:
+                                  Colors.white.withOpacity(0.62),
                                   fontSize: 14,
                                 ),
                               ),
@@ -747,7 +774,8 @@ class _MonthScreenState extends State<MonthScreen> {
                             if (_canSelectNext10) ...<Widget>[
                               GlassActionChip(
                                 label: l10n.nextTen,
-                                icon: Icons.playlist_add_check_circle_outlined,
+                                icon: Icons
+                                    .playlist_add_check_circle_outlined,
                                 onTap: _selectNext10,
                               ),
                               const SizedBox(width: 8),
@@ -765,7 +793,8 @@ class _MonthScreenState extends State<MonthScreen> {
                                 onTap: _markSelectedPaid,
                               ),
                             ],
-                            if (_hasPaidSelected || _hasSentSelected) ...<Widget>[
+                            if (_hasPaidSelected ||
+                                _hasSentSelected) ...<Widget>[
                               const SizedBox(width: 8),
                               GlassActionChip(
                                 label: l10n.markUnpaid,
@@ -799,34 +828,50 @@ class _MonthScreenState extends State<MonthScreen> {
                           : _buildPromoCard(),
                     ),
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                      child: GridView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: _gridItems.length,
-                        gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                          childAspectRatio: 0.82,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragEnd: (details) {
+                        final velocity = details.primaryVelocity ?? 0;
+
+                        if (velocity < -300) {
+                          _goToNextMonth();
+                        } else if (velocity > 300) {
+                          _goToPreviousMonth();
+                        }
+                      },
+                      child: Padding(
+                        padding:
+                        const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                        child: GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: _gridItems.length,
+                          gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 0.82,
+                          ),
+                          itemBuilder: (
+                              BuildContext context,
+                              int index,
+                              ) {
+                            final DayEntry? entry = _gridItems[index];
+
+                            if (entry == null) {
+                              return const SizedBox.shrink();
+                            }
+
+                            return DayCard(
+                              entry: entry,
+                              isSelected: _isSelected(entry.date),
+                              selectionMode: _selectionMode,
+                              onTap: () => _handleTap(entry),
+                              onLongPress: () => _handleLongPress(entry),
+                              showAmount: _settings.showAmountsOnCalendar,
+                            );
+                          },
                         ),
-                        itemBuilder: (BuildContext context, int index) {
-                          final DayEntry? entry = _gridItems[index];
-
-                          if (entry == null) {
-                            return const SizedBox.shrink();
-                          }
-
-                          return DayCard(
-                            entry: entry,
-                            isSelected: _isSelected(entry.date),
-                            selectionMode: _selectionMode,
-                            onTap: () => _handleTap(entry),
-                            onLongPress: () => _handleLongPress(entry),
-                            showAmount: _settings.showAmountsOnCalendar,
-                          );
-                        },
                       ),
                     ),
                   ),

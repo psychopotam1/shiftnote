@@ -649,50 +649,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        GlassCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                'Backup',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white.withOpacity(0.92),
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                'Backup file: Documents/shiftnote_backup.json',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.62),
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: SoftGlassButton(
-                                      label: 'Backup',
-                                      icon: Icons.save_rounded,
-                                      onTap: _backupNow,
-                                    ),
+                        if (_isPro) ...<Widget>[
+                          const SizedBox(height: 16),
+                          GlassCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  'Backup',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white.withOpacity(0.92),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: SoftGlassButton(
-                                      label: 'Import',
-                                      icon: Icons.upload_rounded,
-                                      onTap: _importBackup,
-                                    ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'Backup file: Documents/shiftnote_backup.json',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.62),
+                                    fontSize: 13,
                                   ),
-                                ],
-                              ),
-                            ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: SoftGlassButton(
+                                        label: 'Backup',
+                                        icon: Icons.save_rounded,
+                                        onTap: _backupNow,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: SoftGlassButton(
+                                        label: 'Import',
+                                        icon: Icons.upload_rounded,
+                                        onTap: _importBackup,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                         const SizedBox(height: 20),
                         GlassShadowWrapper(
                           radius: 22,

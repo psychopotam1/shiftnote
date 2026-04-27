@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:glassmorphism_ui/glassmorphism_ui.dart';
 
 import '../l10n/generated/app_localizations.dart';
@@ -8,6 +9,7 @@ import '../widgets/glass_time_picker_sheet.dart';
 import '../models/app_settings.dart';
 import '../models/shift_entry.dart';
 import '../services/ad_service.dart';
+import '../services/pro_service.dart';
 import '../services/settings_service.dart';
 import '../services/shifts_service.dart';
 import '../utils/date_helpers.dart';
@@ -29,6 +31,12 @@ class AddShiftScreen extends StatefulWidget {
 class _AddShiftScreenState extends State<AddShiftScreen> {
   final SettingsService _settingsService = SettingsService();
   final ShiftsService _shiftsService = ShiftsService();
+  final ProService _proService = ProService();
+
+  BannerAd? _bannerAd;
+  bool _isBannerLoaded = false;
+  bool _isPro = false;
+
 
   static const List<String> _durationOptions = <String>[
     '8h',
@@ -68,10 +76,47 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
       widget.initialDate.day,
     );
     _loadSettingsAndShift();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadBannerIfNeeded();
+    });
+  }
+
+  Future<void> _loadBannerIfNeeded() async {
+    final isPro = await _proService.isPro();
+
+    if (!mounted) return;
+
+    if (isPro) {
+      setState(() {
+        _isPro = true;
+        _isBannerLoaded = false;
+      });
+      return;
+    }
+
+    await AdService.instance.warmUpAfterFirstFrame();
+
+    if (!mounted) return;
+
+    final banner = await AdService.instance.createAdaptiveBanner(
+      context: context,
+    );
+
+    if (!mounted) return;
+
+    if (banner != null) {
+      setState(() {
+        _bannerAd = banner;
+        _isBannerLoaded = true;
+        _isPro = false;
+      });
+    }
   }
 
   @override
   void dispose() {
+    _bannerAd?.dispose();
     _projectNameController.dispose();
     _productionNameController.dispose();
     _rateController.dispose();
@@ -800,6 +845,18 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
                       ],
                     ),
                   ),
+                  if (!_isPro && _isBannerLoaded && _bannerAd != null)
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: SizedBox(
+                          width: _bannerAd!.size.width.toDouble(),
+                          height: _bannerAd!.size.height.toDouble(),
+                          child: AdWidget(ad: _bannerAd!),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

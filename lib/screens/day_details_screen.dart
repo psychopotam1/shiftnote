@@ -1,9 +1,12 @@
 // lib/screens/day_details_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/day_entry.dart';
 import '../models/shift_entry.dart';
+import '../services/ad_service.dart';
+import '../services/pro_service.dart';
 import '../services/shifts_service.dart';
 import '../utils/date_helpers.dart';
 import '../widgets/background_orb.dart';
@@ -24,6 +27,11 @@ class DayDetailsScreen extends StatefulWidget {
 
 class _DayDetailsScreenState extends State<DayDetailsScreen> {
   final ShiftsService _shiftsService = ShiftsService();
+  final ProService _proService = ProService();
+
+  BannerAd? _bannerAd;
+  bool _isBannerLoaded = false;
+  bool _isPro = false;
 
   ShiftEntry? _savedShift;
   bool _isLoading = true;
@@ -32,6 +40,48 @@ class _DayDetailsScreenState extends State<DayDetailsScreen> {
   void initState() {
     super.initState();
     _loadShift();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadBannerIfNeeded();
+    });
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadBannerIfNeeded() async {
+    final isPro = await _proService.isPro();
+
+    if (!mounted) return;
+
+    if (isPro) {
+      setState(() {
+        _isPro = true;
+        _isBannerLoaded = false;
+      });
+      return;
+    }
+
+    await AdService.instance.warmUpAfterFirstFrame();
+
+    if (!mounted) return;
+
+    final banner = await AdService.instance.createAdaptiveBanner(
+      context: context,
+    );
+
+    if (!mounted) return;
+
+    if (banner != null) {
+      setState(() {
+        _bannerAd = banner;
+        _isBannerLoaded = true;
+        _isPro = false;
+      });
+    }
   }
 
   Future<void> _loadShift() async {
@@ -229,6 +279,18 @@ class _DayDetailsScreenState extends State<DayDetailsScreen> {
                       ),
                     ),
                   ),
+                  if (!_isPro && _isBannerLoaded && _bannerAd != null)
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: SizedBox(
+                          width: _bannerAd!.size.width.toDouble(),
+                          height: _bannerAd!.size.height.toDouble(),
+                          child: AdWidget(ad: _bannerAd!),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
