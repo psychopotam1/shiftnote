@@ -40,7 +40,7 @@ class ProService {
   Future<void> buyPro() async {
     final available = await _iap.isAvailable();
     if (!available) {
-      throw Exception('Google Play billing is not available on this device.');
+      throw Exception('In-app purchases are not available on this device.');
     }
 
     final response = await _iap.queryProductDetails({productId});
@@ -50,7 +50,7 @@ class ProService {
     }
 
     if (response.productDetails.isEmpty) {
-      throw Exception('Product "$productId" not found in Google Play.');
+      throw Exception('Product "$productId" not found.');
     }
 
     final product = response.productDetails.first;

@@ -392,11 +392,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               const SizedBox(height: 12),
                               SoftGlassButton(
-                                label: _isPro
-                                    ? 'Ads disabled'
-                                    : 'Turn off ads',
+                                label: _isPro ? 'Ads disabled' : 'Turn off ads',
                                 icon: Icons.shield_moon_rounded,
                                 onTap: _buy,
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              SoftGlassButton(
+                                label: 'Restore purchases',
+                                icon: Icons.restore_rounded,
+                                onTap: () async {
+                                  try {
+                                    await _proService.restore();
+
+                                    for (int i = 0; i < 10; i++) {
+                                      await Future.delayed(const Duration(milliseconds: 500));
+                                      final updated = await _proService.isPro();
+
+                                      if (!mounted) return;
+
+                                      if (updated) {
+                                        setState(() {
+                                          _isPro = true;
+                                        });
+
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Purchase restored')),
+                                        );
+                                        return;
+                                      }
+                                    }
+
+                                    if (!mounted) return;
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('No purchases to restore'),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    if (!mounted) return;
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(e.toString())),
+                                    );
+                                  }
+                                },
                               ),
                             ],
                           ),
