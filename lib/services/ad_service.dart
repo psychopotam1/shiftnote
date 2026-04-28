@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -10,13 +11,21 @@ class AdService {
   AdService._();
   static final AdService instance = AdService._();
 
-  static const String bannerAdUnitId =
-      'ca-app-pub-3940256099942544/6300978111';
-  static const String interstitialAdUnitId =
-      'ca-app-pub-3940256099942544/1033173712';
+  static String get bannerAdUnitId {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-4116649081202292/3579638610';
+    }
+    return 'ca-app-pub-4116649081202292/4960688416';
+  }
+
+  static String get interstitialAdUnitId {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-4116649081202292/1943123318';
+    }
+    return 'ca-app-pub-4116649081202292/6536974446';
+  }
 
   static const String _actionCounterKey = 'ad_action_counter';
-
   static const int _showEvery = 4;
 
   InterstitialAd? _interstitialAd;
