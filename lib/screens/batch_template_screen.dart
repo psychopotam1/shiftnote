@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../models/app_settings.dart';
 import '../models/shift_entry.dart';
+import '../services/ad_service.dart';
+import '../services/pro_service.dart';
 import '../services/settings_service.dart';
 import '../services/shifts_service.dart';
 import '../utils/date_helpers.dart';
@@ -24,6 +27,11 @@ class BatchTemplateScreen extends StatefulWidget {
 class _BatchTemplateScreenState extends State<BatchTemplateScreen> {
   final ShiftsService _shiftsService = ShiftsService();
   final SettingsService _settingsService = SettingsService();
+  final ProService _proService = ProService();
+
+  BannerAd? _bannerAd;
+  bool _isBannerLoaded = false;
+  bool _isPro = false;
 
   static const List<String> _durationOptions = <String>[
     '8h',
@@ -50,10 +58,12 @@ class _BatchTemplateScreenState extends State<BatchTemplateScreen> {
   void initState() {
     super.initState();
     _loadInitial();
+    _loadBanner();
   }
 
   @override
   void dispose() {
+    _bannerAd?.dispose();
     _projectNameController.dispose();
     _productionNameController.dispose();
     _baseRateController.dispose();
@@ -61,6 +71,42 @@ class _BatchTemplateScreenState extends State<BatchTemplateScreen> {
     _locationController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadBanner() async {
+    final isPro = await _proService.isPro();
+
+    if (!mounted) return;
+
+    setState(() {
+      _isPro = isPro;
+    });
+
+    if (isPro) {
+      _bannerAd?.dispose();
+      _bannerAd = null;
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      await AdService.instance.warmUpAfterFirstFrame();
+
+      final banner = await AdService.instance.createAdaptiveBanner(
+        context: context,
+      );
+
+      if (!mounted) {
+        banner?.dispose();
+        return;
+      }
+
+      setState(() {
+        _bannerAd = banner;
+        _isBannerLoaded = banner != null;
+      });
+    });
   }
 
   String _numberText(double value) {
@@ -146,6 +192,7 @@ class _BatchTemplateScreenState extends State<BatchTemplateScreen> {
     final l10n = AppLocalizations.of(context)!;
     final currencyCode = _settings.currencyCode;
     final currencySymbol = DateHelpers.currencySymbol(currencyCode);
+    final showBanner = !_isPro && _isBannerLoaded && _bannerAd != null;
 
     if (_isLoading) {
       return const Scaffold(
@@ -381,6 +428,15 @@ class _BatchTemplateScreenState extends State<BatchTemplateScreen> {
                       ],
                     ),
                   ),
+                  if (showBanner)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: SizedBox(
+                        width: _bannerAd!.size.width.toDouble(),
+                        height: _bannerAd!.size.height.toDouble(),
+                        child: AdWidget(ad: _bannerAd!),
+                      ),
+                    ),
                 ],
               ),
             ),

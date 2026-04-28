@@ -10,14 +10,14 @@ class AdService {
   AdService._();
   static final AdService instance = AdService._();
 
-  static const String bannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111';
-  static const String interstitialAdUnitId = 'ca-app-pub-3940256099942544/1033173712';
+  static const String bannerAdUnitId =
+      'ca-app-pub-3940256099942544/6300978111';
+  static const String interstitialAdUnitId =
+      'ca-app-pub-3940256099942544/1033173712';
 
   static const String _actionCounterKey = 'ad_action_counter';
-  static const String _lastInterstitialAtKey = 'last_interstitial_at_ms';
 
   static const int _showEvery = 4;
-  static const Duration _minInterval = Duration(minutes: 3);
 
   InterstitialAd? _interstitialAd;
   bool _isLoadingInterstitial = false;
@@ -35,6 +35,8 @@ class AdService {
   Future<void> preloadInterstitial() async {
     if (_isLoadingInterstitial || _interstitialAd != null) return;
     if (await isPro()) return;
+
+    await initialize();
 
     _isLoadingInterstitial = true;
 
@@ -60,31 +62,35 @@ class AdService {
     await preloadInterstitial();
   }
 
-  Future<bool> _shouldShowNow() async {
-    if (await isPro()) return false;
-
+  Future<int> _increaseActionCounter() async {
     final prefs = await SharedPreferences.getInstance();
-    final currentCount = (prefs.getInt(_actionCounterKey) ?? 0) + 1;
-    await prefs.setInt(_actionCounterKey, currentCount);
+    final nextCount = (prefs.getInt(_actionCounterKey) ?? 0) + 1;
+    await prefs.setInt(_actionCounterKey, nextCount);
+    return nextCount;
+  }
 
-    if (currentCount % _showEvery != 0) return false;
-
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final lastMs = prefs.getInt(_lastInterstitialAtKey) ?? 0;
-
-    if (nowMs - lastMs < _minInterval.inMilliseconds) {
-      return false;
-    }
-
-    return true;
+  Future<void> _resetActionCounter() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_actionCounterKey, 0);
   }
 
   Future<void> registerActionAndMaybeShow({
     required VoidCallback onContinue,
   }) async {
-    final shouldShow = await _shouldShowNow();
+    if (await isPro()) {
+      onContinue();
+      return;
+    }
 
-    if (!shouldShow || _interstitialAd == null || _isShowingInterstitial) {
+    final currentCount = await _increaseActionCounter();
+
+    if (currentCount < _showEvery) {
+      onContinue();
+      unawaited(preloadInterstitial());
+      return;
+    }
+
+    if (_interstitialAd == null || _isShowingInterstitial) {
       onContinue();
       unawaited(preloadInterstitial());
       return;
@@ -98,11 +104,7 @@ class AdService {
       onAdDismissedFullScreenContent: (ad) async {
         ad.dispose();
         _isShowingInterstitial = false;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt(
-          _lastInterstitialAtKey,
-          DateTime.now().millisecondsSinceEpoch,
-        );
+        await _resetActionCounter();
         onContinue();
         unawaited(preloadInterstitial());
       },
@@ -127,7 +129,8 @@ class AdService {
     final width = MediaQuery.of(context).size.width.truncate();
     if (width <= 0) return null;
 
-    final size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width);
+    final size =
+    await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width);
     if (size == null) return null;
 
     final banner = BannerAd(

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/app_settings.dart';
 import '../models/shift_entry.dart';
 import '../services/ad_service.dart';
+import '../services/pro_service.dart';
 import '../services/settings_service.dart';
 import '../services/shifts_service.dart';
 import '../utils/date_helpers.dart';
@@ -25,6 +27,11 @@ class SummaryScreen extends StatefulWidget {
 class _SummaryScreenState extends State<SummaryScreen> {
   final ShiftsService _shiftsService = ShiftsService();
   final SettingsService _settingsService = SettingsService();
+  final ProService _proService = ProService();
+
+  BannerAd? _bannerAd;
+  bool _isBannerLoaded = false;
+  bool _isPro = false;
 
   bool _isLoading = true;
   AppSettings _settings = AppSettings.defaults();
@@ -34,6 +41,50 @@ class _SummaryScreenState extends State<SummaryScreen> {
   void initState() {
     super.initState();
     _load();
+    _refreshPro();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final isPro = await _proService.isPro();
+      if (isPro) return;
+
+      await AdService.instance.warmUpAfterFirstFrame();
+      final banner = await AdService.instance.createAdaptiveBanner(
+        context: context,
+      );
+
+      if (!mounted) return;
+
+      if (banner != null) {
+        setState(() {
+          _bannerAd = banner;
+          _isBannerLoaded = true;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refreshPro() async {
+    final isPro = await _proService.isPro();
+
+    if (!mounted) return;
+
+    if (isPro) {
+      _bannerAd?.dispose();
+      _bannerAd = null;
+    }
+
+    setState(() {
+      _isPro = isPro;
+      if (isPro) {
+        _isBannerLoaded = false;
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -377,6 +428,18 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       ],
                     ),
                   ),
+                  if (!_isPro && _isBannerLoaded && _bannerAd != null)
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: SizedBox(
+                          width: _bannerAd!.size.width.toDouble(),
+                          height: _bannerAd!.size.height.toDouble(),
+                          child: AdWidget(ad: _bannerAd!),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
