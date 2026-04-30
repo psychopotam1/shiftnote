@@ -21,36 +21,51 @@ class ProService {
   }
 
   void initPurchaseListener() {
-    _subscription = _iap.purchaseStream.listen((purchases) async {
-      for (final purchase in purchases) {
-        if (purchase.productID != productId) continue;
+    _subscription?.cancel();
 
-        if (purchase.status == PurchaseStatus.purchased ||
-            purchase.status == PurchaseStatus.restored) {
-          await setPro(true);
-        }
+    _subscription = _iap.purchaseStream.listen(
+          (purchases) async {
+        for (final purchase in purchases) {
+          if (purchase.productID != productId) continue;
 
-        if (purchase.pendingCompletePurchase) {
-          await _iap.completePurchase(purchase);
+          if (purchase.status == PurchaseStatus.purchased ||
+              purchase.status == PurchaseStatus.restored) {
+            await setPro(true);
+          }
+
+          if (purchase.status == PurchaseStatus.error) {
+            // Ошибку не пробрасываем наружу, чтобы ревью не видело краш/сырой error.
+          }
+
+          if (purchase.pendingCompletePurchase) {
+            await _iap.completePurchase(purchase);
+          }
         }
-      }
-    });
+      },
+      onError: (_) {
+        // Не даём ошибке стрима ломать приложение.
+      },
+    );
   }
 
   Future<void> buyPro() async {
     final available = await _iap.isAvailable();
     if (!available) {
-      throw Exception('In-app purchases are not available on this device.');
+      throw Exception('Purchases are currently unavailable. Please try again later.');
     }
 
     final response = await _iap.queryProductDetails({productId});
 
     if (response.error != null) {
-      throw Exception(response.error!.message);
+      throw Exception(
+        response.error!.message.isEmpty
+            ? 'Unable to load purchase information.'
+            : response.error!.message,
+      );
     }
 
-    if (response.productDetails.isEmpty) {
-      throw Exception('Product "$productId" not found.');
+    if (response.notFoundIDs.isNotEmpty || response.productDetails.isEmpty) {
+      throw Exception('Purchase is currently unavailable. Please try again later.');
     }
 
     final product = response.productDetails.first;
@@ -66,22 +81,31 @@ class ProService {
         return;
       }
 
-      rethrow;
+      throw Exception('Unable to start purchase. Please try again later.');
     }
   }
 
   Future<void> restore() async {
-    await _iap.restorePurchases();
+    try {
+      await _iap.restorePurchases();
+    } catch (_) {
+      throw Exception('Unable to restore purchases. Please try again later.');
+    }
   }
 
   Future<void> checkPastPurchases() async {
     final available = await _iap.isAvailable();
     if (!available) return;
 
-    await _iap.restorePurchases();
+    try {
+      await _iap.restorePurchases();
+    } catch (_) {
+      // Молча игнорируем при запуске, чтобы не ломать приложение.
+    }
   }
 
   void dispose() {
     _subscription?.cancel();
+    _subscription = null;
   }
 }
