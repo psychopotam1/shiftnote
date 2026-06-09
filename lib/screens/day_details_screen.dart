@@ -36,6 +36,8 @@ class _DayDetailsScreenState extends State<DayDetailsScreen> {
   ShiftEntry? _savedShift;
   bool _isLoading = true;
 
+  DateTime get _sourceDate => widget.entry.sourceDate ?? widget.entry.date;
+
   @override
   void initState() {
     super.initState();
@@ -85,7 +87,7 @@ class _DayDetailsScreenState extends State<DayDetailsScreen> {
   }
 
   Future<void> _loadShift() async {
-    final shift = await _shiftsService.getShift(widget.entry.date);
+    final shift = await _shiftsService.getShift(_sourceDate);
 
     if (!mounted) return;
 
@@ -102,7 +104,7 @@ class _DayDetailsScreenState extends State<DayDetailsScreen> {
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => AddShiftScreen(initialDate: widget.entry.date),
+        builder: (_) => AddShiftScreen(initialDate: _sourceDate),
       ),
     );
 
@@ -192,13 +194,22 @@ class _DayDetailsScreenState extends State<DayDetailsScreen> {
                                             ? l10n.emptyDay
                                             : (_savedShift!.isDayOff
                                             ? l10n.dayOff
-                                            : l10n.shift),
+                                            : (widget.entry.isNightContinuation
+                                                ? 'Ночная смена, продолжение'
+                                                : l10n.shift)),
                                       ),
+                                      if (widget.entry.isNightContinuation && _savedShift != null)
+                                        InfoRow(
+                                          label: 'На этот день',
+                                          value: _savedShift!.nextDaySegmentLabel,
+                                        ),
                                       InfoRow(
                                         label: l10n.hours,
                                         value: _savedShift == null
                                             ? '—'
-                                            : '${_savedShift!.startTime} - ${_savedShift!.endTime}',
+                                            : (widget.entry.isNightContinuation
+                                                ? _savedShift!.timeRangeLabel
+                                                : _savedShift!.timeRangeLabel),
                                       ),
                                       InfoRow(
                                         label: l10n.duration,
@@ -221,6 +232,23 @@ class _DayDetailsScreenState extends State<DayDetailsScreen> {
                                             ? _savedShift!.productionName
                                             : '—',
                                       ),
+                                      if ((_savedShift?.shortRestHours ?? 0) > 0)
+                                        InfoRow(
+                                          label: 'Недосып',
+                                          value: '+${_savedShift!.shortRestHours} h / ${_savedShift!.shortRestTotal}',
+                                        ),
+                                      if ((_savedShift?.transportExpense ?? 0) > 0)
+                                        InfoRow(
+                                          label: l10n.transport,
+                                          value: _savedShift!.transportExpense.toString(),
+                                        ),
+                                      if ((_savedShift?.extraServiceAmount ?? 0) > 0)
+                                        InfoRow(
+                                          label: _savedShift!.extraServiceTitle.isEmpty
+                                              ? 'Допуслуга'
+                                              : _savedShift!.extraServiceTitle,
+                                          value: _savedShift!.extraServiceAmount.toString(),
+                                        ),
                                       InfoRow(
                                         label: l10n.amount,
                                         value: _savedShift == null

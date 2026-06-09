@@ -19,6 +19,9 @@ class SettingsService {
       'show_amounts_on_calendar';
   static const String _ignoreFirst15MinOfFirstOtHourKey =
       'ignore_first_15_min_of_first_ot_hour';
+  static const String _shortRestEnabledKey = 'short_rest_enabled';
+  static const String _minimumRestHoursKey = 'minimum_rest_hours';
+  static const String _shortRestBonusHoursKey = 'short_rest_bonus_hours';
 
   Future<AppSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -57,6 +60,12 @@ class SettingsService {
       ignoreFirst15MinOfFirstOtHour:
       prefs.getBool(_ignoreFirst15MinOfFirstOtHourKey) ??
           defaults.ignoreFirst15MinOfFirstOtHour,
+      shortRestEnabled:
+      prefs.getBool(_shortRestEnabledKey) ?? defaults.shortRestEnabled,
+      minimumRestHours:
+      prefs.getDouble(_minimumRestHoursKey) ?? defaults.minimumRestHours,
+      shortRestBonusHours:
+      prefs.getDouble(_shortRestBonusHoursKey) ?? defaults.shortRestBonusHours,
     );
   }
 
@@ -91,5 +100,8 @@ class SettingsService {
       _ignoreFirst15MinOfFirstOtHourKey,
       settings.ignoreFirst15MinOfFirstOtHour,
     );
+    await prefs.setBool(_shortRestEnabledKey, settings.shortRestEnabled);
+    await prefs.setDouble(_minimumRestHoursKey, settings.minimumRestHours);
+    await prefs.setDouble(_shortRestBonusHoursKey, settings.shortRestBonusHours);
   }
 }

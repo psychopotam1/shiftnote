@@ -12,6 +12,9 @@ class AppSettings {
   final bool addToCalendarByDefault;
   final bool showAmountsOnCalendar;
   final bool ignoreFirst15MinOfFirstOtHour;
+  final bool shortRestEnabled;
+  final double minimumRestHours;
+  final double shortRestBonusHours;
 
   const AppSettings({
     required this.localeCode,
@@ -27,6 +30,9 @@ class AppSettings {
     required this.addToCalendarByDefault,
     required this.showAmountsOnCalendar,
     required this.ignoreFirst15MinOfFirstOtHour,
+    required this.shortRestEnabled,
+    required this.minimumRestHours,
+    required this.shortRestBonusHours,
   });
 
   factory AppSettings.defaults() {
@@ -44,6 +50,9 @@ class AppSettings {
       addToCalendarByDefault: false,
       showAmountsOnCalendar: false,
       ignoreFirst15MinOfFirstOtHour: false,
+      shortRestEnabled: false,
+      minimumRestHours: 10,
+      shortRestBonusHours: 1,
     );
   }
 
@@ -61,6 +70,9 @@ class AppSettings {
     bool? addToCalendarByDefault,
     bool? showAmountsOnCalendar,
     bool? ignoreFirst15MinOfFirstOtHour,
+    bool? shortRestEnabled,
+    double? minimumRestHours,
+    double? shortRestBonusHours,
   }) {
     return AppSettings(
       localeCode: localeCode ?? this.localeCode,
@@ -74,12 +86,14 @@ class AppSettings {
       defaultEndHour: defaultEndHour ?? this.defaultEndHour,
       defaultEndMinute: defaultEndMinute ?? this.defaultEndMinute,
       addToCalendarByDefault:
-      addToCalendarByDefault ?? this.addToCalendarByDefault,
+          addToCalendarByDefault ?? this.addToCalendarByDefault,
       showAmountsOnCalendar:
-      showAmountsOnCalendar ?? this.showAmountsOnCalendar,
+          showAmountsOnCalendar ?? this.showAmountsOnCalendar,
       ignoreFirst15MinOfFirstOtHour:
-      ignoreFirst15MinOfFirstOtHour ??
-          this.ignoreFirst15MinOfFirstOtHour,
+          ignoreFirst15MinOfFirstOtHour ?? this.ignoreFirst15MinOfFirstOtHour,
+      shortRestEnabled: shortRestEnabled ?? this.shortRestEnabled,
+      minimumRestHours: minimumRestHours ?? this.minimumRestHours,
+      shortRestBonusHours: shortRestBonusHours ?? this.shortRestBonusHours,
     );
   }
 }

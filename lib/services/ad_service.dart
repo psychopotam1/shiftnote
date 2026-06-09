@@ -15,14 +15,14 @@ class AdService {
     if (Platform.isIOS) {
       return 'ca-app-pub-4116649081202292/3579638610';
     }
-    return 'ca-app-pub-4116649081202292/4960688416';
+    return 'ca-app-pub-4116649081202292/2102493694';
   }
 
   static String get interstitialAdUnitId {
     if (Platform.isIOS) {
       return 'ca-app-pub-4116649081202292/1943123318';
     }
-    return 'ca-app-pub-4116649081202292/6536974446';
+    return 'ca-app-pub-4116649081202292/6087486106';
   }
 
   static const String _actionCounterKey = 'ad_action_counter';

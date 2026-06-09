@@ -101,6 +101,24 @@ class _MonthScreenState extends State<MonthScreen> {
     });
   }
 
+  String _dateKey(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  ShiftEntry? _findPreviousNightShift(
+    DateTime date,
+    Map<String, ShiftEntry> savedShifts,
+  ) {
+    final previousDate = DateTime(date.year, date.month, date.day - 1);
+    final previous = savedShifts[_dateKey(previousDate)];
+    if (previous == null || previous.isDayOff || !previous.crossesMidnight) {
+      return null;
+    }
+    return previous;
+  }
+
   Future<void> _loadMonth(
       DateTime month, {
         bool preserveSelection = false,
@@ -112,14 +130,14 @@ class _MonthScreenState extends State<MonthScreen> {
     final isPro = await _proService.isPro();
 
     final List<DayEntry> mergedDays = sampleDays.map((entry) {
-      final key =
-          '${entry.date.year.toString().padLeft(4, '0')}-'
-          '${entry.date.month.toString().padLeft(2, '0')}-'
-          '${entry.date.day.toString().padLeft(2, '0')}';
-
+      final key = _dateKey(entry.date);
       final ShiftEntry? saved = savedShifts[key];
+      final ShiftEntry? previousNightShift = _findPreviousNightShift(
+        entry.date,
+        savedShifts,
+      );
 
-      if (saved == null) {
+      if (saved == null && previousNightShift == null) {
         return DayEntry(
           date: entry.date,
           type: DayCellType.empty,
@@ -131,31 +149,71 @@ class _MonthScreenState extends State<MonthScreen> {
         );
       }
 
-      if (saved.isDayOff) {
+      if (saved == null && previousNightShift != null) {
         return DayEntry(
           date: entry.date,
-          type: DayCellType.off,
-          hoursLabel: 'Day off',
-          overtimeLabel: '',
+          type: DayCellType.continuation,
+          hoursLabel: previousNightShift.nextDaySegmentLabel,
+          overtimeLabel: 'Night',
           amountLabel: '',
-          projectName: '',
-          paymentStatus: null,
+          projectName: previousNightShift.projectName,
+          paymentStatus: previousNightShift.paymentStatus,
+          sourceDate: previousNightShift.dateOnly,
+          isNightContinuation: true,
         );
       }
 
+      if (saved!.isDayOff) {
+        return DayEntry(
+          date: entry.date,
+          type: DayCellType.off,
+          hoursLabel: previousNightShift == null
+              ? 'Day off'
+              : '${previousNightShift.nextDaySegmentLabel} / Day off',
+          overtimeLabel: previousNightShift == null ? '' : 'Night',
+          amountLabel: '',
+          projectName: previousNightShift?.projectName ?? '',
+          paymentStatus: null,
+          sourceDate: previousNightShift?.dateOnly,
+          isNightContinuation: previousNightShift != null,
+        );
+      }
+
+      final hoursLabel = previousNightShift == null
+          ? saved.startDaySegmentLabel
+          : '${previousNightShift.nextDaySegmentLabel} / ${saved.startDaySegmentLabel}';
+
+      final List<String> badges = <String>[];
+      if (saved.crossesMidnight || previousNightShift != null) {
+        badges.add('Night');
+      }
+      if (saved.hasOvertime) {
+        badges.add(
+          '+${saved.totalAdditionalHours.toStringAsFixed(saved.totalAdditionalHours == saved.totalAdditionalHours.roundToDouble() ? 0 : 1)} OT',
+        );
+      }
+      final overtimeLabel = badges.join(' / ');
+      final cellType = saved.hasOvertime
+          ? DayCellType.overtime
+          : ((saved.crossesMidnight || previousNightShift != null)
+              ? DayCellType.continuation
+              : DayCellType.shift);
+
       return DayEntry(
         date: entry.date,
-        type: saved.isOvertime ? DayCellType.overtime : DayCellType.shift,
-        hoursLabel: '${saved.startTime}-${saved.endTime}',
-        overtimeLabel: saved.isOvertime
-            ? '+${saved.overtimeHours.toStringAsFixed(saved.overtimeHours == saved.overtimeHours.roundToDouble() ? 0 : 1)} OT'
-            : '',
+        type: cellType,
+        hoursLabel: hoursLabel,
+        overtimeLabel: overtimeLabel,
         amountLabel: DateHelpers.formatMoney(
           saved.total,
           currencyCode: settings.currencyCode,
         ),
-        projectName: saved.projectName,
+        projectName: saved.projectName.isNotEmpty
+            ? saved.projectName
+            : (previousNightShift?.projectName ?? ''),
         paymentStatus: saved.paymentStatus,
+        sourceDate: previousNightShift?.dateOnly,
+        isNightContinuation: previousNightShift != null,
       );
     }).toList();
 

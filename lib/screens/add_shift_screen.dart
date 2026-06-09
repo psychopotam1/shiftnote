@@ -56,6 +56,8 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
   TextEditingController();
   final TextEditingController _rateController = TextEditingController();
   final TextEditingController _transportController = TextEditingController();
+  final TextEditingController _extraServiceTitleController = TextEditingController();
+  final TextEditingController _extraServiceAmountController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _overtimeRateController =
@@ -64,6 +66,8 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
   bool _addToDeviceCalendar = false;
   bool _isLoadingSettings = true;
   bool _ignoreFirst15MinOfFirstOtHour = true;
+  bool _isNightShift = false;
+  double _shortRestPreviewHours = 0;
 
   AppSettings _settings = AppSettings.defaults();
 
@@ -121,6 +125,8 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
     _productionNameController.dispose();
     _rateController.dispose();
     _transportController.dispose();
+    _extraServiceTitleController.dispose();
+    _extraServiceAmountController.dispose();
     _notesController.dispose();
     _locationController.dispose();
     _overtimeRateController.dispose();
@@ -133,17 +139,20 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
 
     if (existingShift != null) {
       _selectedShiftDuration = existingShift.shiftDuration.isEmpty
-          ? null
+          ? (existingShift.crossesMidnight ? '12h' : null)
           : existingShift.shiftDuration;
       _projectNameController.text = existingShift.projectName;
       _productionNameController.text = existingShift.productionName;
       _rateController.text = _numberText(existingShift.baseRate);
       _transportController.text = _numberText(existingShift.transportExpense);
+      _extraServiceTitleController.text = existingShift.extraServiceTitle;
+      _extraServiceAmountController.text = _numberText(existingShift.extraServiceAmount);
       _overtimeRateController.text = _numberText(existingShift.overtimeRate);
       _locationController.text = existingShift.location;
       _notesController.text = existingShift.notes;
       _ignoreFirst15MinOfFirstOtHour =
           existingShift.ignoreFirst15MinOfFirstOtHour;
+      _isNightShift = existingShift.isNightShift;
 
       _startTime = _parseStoredTime(
         existingShift.startTime,
@@ -160,11 +169,16 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
         ),
       );
     } else {
-      _selectedShiftDuration = null;
+      // Film/production shifts most often use 12h as the normal day.
+      // Having a default here prevents a night shift like 15:00-05:00
+      // from showing 0 OT only because no duration was selected yet.
+      _selectedShiftDuration = '12h';
       _projectNameController.text = '';
       _productionNameController.text = '';
       _rateController.text = _numberText(loaded.defaultBaseRate);
       _transportController.text = '0';
+      _extraServiceTitleController.text = '';
+      _extraServiceAmountController.text = '0';
       _overtimeRateController.text = _numberText(loaded.defaultOvertimeRate);
       _startTime = TimeOfDay(
         hour: loaded.defaultStartHour,
@@ -175,9 +189,14 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
         minute: loaded.defaultEndMinute,
       );
       _ignoreFirst15MinOfFirstOtHour = loaded.ignoreFirst15MinOfFirstOtHour;
+      _isNightShift = false;
     }
 
     _addToDeviceCalendar = loaded.addToCalendarByDefault;
+    _shortRestPreviewHours = await _shiftsService.calculateShortRestPreview(
+      date: _selectedDate,
+      startTime: '${_startTime.hour}:${_startTime.minute.toString().padLeft(2, '0')}',
+    );
 
     if (!mounted) return;
 
@@ -232,6 +251,7 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
     setState(() {
       _selectedDate = DateTime(picked.year, picked.month, picked.day);
     });
+    await _refreshShortRestPreview();
   }
 
   Future<void> _pickStartTime() async {
@@ -247,6 +267,16 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
     setState(() {
       _startTime = picked;
     });
+    await _refreshShortRestPreview();
+  }
+
+  Future<void> _refreshShortRestPreview() async {
+    final hours = await _shiftsService.calculateShortRestPreview(
+      date: _selectedDate,
+      startTime: '${_startTime.hour}:${_startTime.minute.toString().padLeft(2, '0')}',
+    );
+    if (!mounted) return;
+    setState(() => _shortRestPreviewHours = hours);
   }
 
   Future<void> _pickEndTime() async {
@@ -261,6 +291,9 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
 
     setState(() {
       _endTime = picked;
+      if (_toMinutes(picked) < _toMinutes(_startTime)) {
+        _isNightShift = true;
+      }
     });
   }
 
@@ -271,12 +304,16 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
 
   int _durationHours() {
     if (_selectedShiftDuration == null || _selectedShiftDuration!.isEmpty) {
+      // Fallback for night shifts when an old record has no saved duration.
+      // This prevents 14:00-11:00 from being treated as 0 overtime only
+      // because shiftDuration is empty.
+      if (_isNightShift) {
+        return 12;
+      }
       return 0;
     }
-    return int.tryParse(
-      _selectedShiftDuration!.replaceAll('h', '').trim(),
-    ) ??
-        0;
+    final match = RegExp(r'\d+').firstMatch(_selectedShiftDuration!);
+    return match == null ? 0 : int.tryParse(match.group(0)!) ?? 0;
   }
 
   int _toMinutes(TimeOfDay time) => (time.hour * 60) + time.minute;
@@ -295,18 +332,37 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
     );
   }
 
+  String _formatAbsoluteMinutesWithDay(int totalMinutes) {
+    final label = _formatMinutesAsTime(
+      totalMinutes,
+      use24Hour: _settings.use24HourFormat,
+    );
+    return totalMinutes >= 1440 ? '$label (+1d)' : label;
+  }
+
+  bool get _endsNextDay => _isNightShift;
+
   int get _plannedEndMinutes {
     final durationHours = _durationHours();
     return _toMinutes(_startTime) + (durationHours * 60);
   }
 
   int get _actualEndAbsoluteMinutes {
-    final start = _toMinutes(_startTime);
-    int end = _toMinutes(_endTime);
-    if (end < start) {
-      end += 1440;
-    }
-    return end;
+    final end = _toMinutes(_endTime);
+    return _isNightShift ? end + 1440 : end;
+  }
+
+  double get _actualDurationHours {
+    final minutes = _actualEndAbsoluteMinutes - _toMinutes(_startTime);
+    if (minutes <= 0) return 0;
+    return minutes / 60;
+  }
+
+  String get _actualDurationLabel {
+    final hours = _actualDurationHours;
+    if (hours == 0) return '0h';
+    if (hours == hours.roundToDouble()) return '${hours.toStringAsFixed(0)}h';
+    return '${hours.toStringAsFixed(1)}h';
   }
 
   int get _overtimeMinutes {
@@ -330,16 +386,28 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
   }
 
   double get _overtimeTotal {
-    return _calculatedOvertimeHours * _parseNumber(_overtimeRateController.text);
+    return (_calculatedOvertimeHours + _shortRestPreviewHours) *
+        _parseNumber(_overtimeRateController.text);
   }
 
   double get _baseTotal => _parseNumber(_rateController.text);
 
   double get _transportTotal => _parseNumber(_transportController.text);
 
-  double get _grandTotal => _baseTotal + _overtimeTotal + _transportTotal;
+  double get _extraServiceTotal => _parseNumber(_extraServiceAmountController.text);
+
+  double get _grandTotal => _baseTotal + _overtimeTotal + _transportTotal + _extraServiceTotal;
 
   Future<void> _saveShift() async {
+    if (!_isNightShift && _toMinutes(_endTime) <= _toMinutes(_startTime)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Конец смены раньше начала. Включите «Ночная смена» или исправьте время.'),
+        ),
+      );
+      return;
+    }
+
     final calculatedOtHours = _calculatedOvertimeHours;
 
     final shift = ShiftEntry(
@@ -353,14 +421,18 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
       productionName: _productionNameController.text.trim(),
       baseRate: _baseTotal,
       overtimeHours: calculatedOtHours,
+      shortRestHours: _shortRestPreviewHours,
       overtimeRate: _parseNumber(_overtimeRateController.text),
       transportExpense: _transportTotal,
+      extraServiceTitle: _extraServiceTitleController.text.trim(),
+      extraServiceAmount: _extraServiceTotal,
       location: _locationController.text.trim(),
       notes: _notesController.text.trim(),
-      isOvertime: calculatedOtHours > 0,
+      isOvertime: calculatedOtHours > 0 || _shortRestPreviewHours > 0,
       ignoreFirst15MinOfFirstOtHour: _ignoreFirst15MinOfFirstOtHour,
       paymentStatus: PaymentStatus.unpaid,
       isDayOff: false,
+      isNightShift: _isNightShift,
     );
 
     await _shiftsService.saveShift(shift);
@@ -391,18 +463,20 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
 
     final overtimeTotal = _overtimeTotal;
     final transportTotal = _transportTotal;
+    final extraServiceTotal = _extraServiceTotal;
     final grandTotal = _grandTotal;
     final currencyCode = _settings.currencyCode;
     final currencySymbol = DateHelpers.currencySymbol(currencyCode);
     final plannedEndLabel = _durationHours() > 0
-        ? _formatMinutesAsTime(
-      _plannedEndMinutes,
-      use24Hour: _settings.use24HourFormat,
-    )
+        ? _formatAbsoluteMinutesWithDay(_plannedEndMinutes)
         : '—';
+    final actualEndLabel = _formatAbsoluteMinutesWithDay(_actualEndAbsoluteMinutes);
     final overtimeHoursLabel = _calculatedOvertimeHours == 0
         ? '0h'
         : '${_calculatedOvertimeHours.toStringAsFixed(0)}h';
+    final shortRestLabel = _shortRestPreviewHours == 0
+        ? '0h'
+        : '+${_shortRestPreviewHours.toStringAsFixed(_shortRestPreviewHours == _shortRestPreviewHours.roundToDouble() ? 0 : 1)}h';
 
     return Scaffold(
       body: DecoratedBox(
@@ -512,18 +586,39 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
                                   Expanded(
                                     child: _ActionField(
                                       label: l10n.endLabel,
-                                      value: DateHelpers.formatTimeOfDay(
+                                      value: '${DateHelpers.formatTimeOfDay(
                                         _endTime.hour,
                                         _endTime.minute,
                                         use24HourFormat:
                                         _settings.use24HourFormat,
-                                      ),
+                                      )}${_endsNextDay ? ' (+1d)' : ''}',
                                       icon: Icons.logout_rounded,
                                       onTap: _pickEndTime,
                                     ),
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 12),
+                              _SwitchRow(
+                                title: 'Ночная смена / закончилась на следующий день',
+                                value: _isNightShift,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _isNightShift = value;
+                                  });
+                                },
+                              ),
+                              if (_isNightShift) ...<Widget>[
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Окончание будет считаться на следующий день: ${_formatAbsoluteMinutesWithDay(_actualEndAbsoluteMinutes)}',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.58),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -605,6 +700,20 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
                               ),
                               const SizedBox(height: 12),
                               _GlassTextField(
+                                controller: _extraServiceTitleController,
+                                label: 'Допуслуга / дополнительный расход',
+                                hint: 'Напр. аренда оборудования',
+                              ),
+                              const SizedBox(height: 12),
+                              _GlassTextField(
+                                controller: _extraServiceAmountController,
+                                label: 'Сумма допуслуги',
+                                hint: '${l10n.examplePrefix} ${currencySymbol}100',
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                              const SizedBox(height: 12),
+                              _GlassTextField(
                                 controller: _locationController,
                                 label: l10n.locationLabel,
                                 hint: l10n.locationHint,
@@ -656,13 +765,28 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
                               ),
                               const SizedBox(height: 12),
                               _InfoPill(
+                                label: 'Фактическая длительность',
+                                value: _actualDurationLabel,
+                              ),
+                              const SizedBox(height: 10),
+                              _InfoPill(
                                 label: l10n.plannedEnd,
                                 value: plannedEndLabel,
                               ),
                               const SizedBox(height: 10),
                               _InfoPill(
+                                label: 'Фактическое окончание',
+                                value: actualEndLabel,
+                              ),
+                              const SizedBox(height: 10),
+                              _InfoPill(
                                 label: l10n.calculatedOt,
                                 value: overtimeHoursLabel,
+                              ),
+                              const SizedBox(height: 10),
+                              _InfoPill(
+                                label: 'Недосып между сменами',
+                                value: shortRestLabel,
                               ),
                               const SizedBox(height: 10),
                               GlassShadowWrapper(
@@ -770,7 +894,17 @@ class _AddShiftScreenState extends State<AddShiftScreen> {
                               _MoneyLine(
                                 label: l10n.transportLabel,
                                 value: DateHelpers.formatMoney(
-                                  _transportTotal,
+                                  transportTotal,
+                                  currencyCode: currencyCode,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              _MoneyLine(
+                                label: _extraServiceTitleController.text.trim().isEmpty
+                                    ? 'Допуслуга'
+                                    : _extraServiceTitleController.text.trim(),
+                                value: DateHelpers.formatMoney(
+                                  extraServiceTotal,
                                   currencyCode: currencyCode,
                                 ),
                               ),

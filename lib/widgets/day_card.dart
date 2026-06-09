@@ -418,6 +418,20 @@ class DayCard extends StatelessWidget {
           badge: Colors.white.withOpacity(0.10),
           shadowColor: Colors.white,
         );
+      case DayCellType.continuation:
+        return DayStyle(
+          fill: selected
+              ? const Color(0xFF2B2846)
+              : const Color(0xFF1E1B33),
+          border: selected
+              ? const Color(0xFFB9A7FF).withOpacity(0.40)
+              : const Color(0xFFB9A7FF).withOpacity(0.18),
+          primaryText: Colors.white,
+          secondaryText: const Color(0xFFE0D7FF).withOpacity(0.86),
+          accent: const Color(0xFFB9A7FF),
+          badge: const Color(0xFFB9A7FF).withOpacity(0.14),
+          shadowColor: const Color(0xFFB9A7FF),
+        );
       case DayCellType.planned:
         return DayStyle(
           fill: selected

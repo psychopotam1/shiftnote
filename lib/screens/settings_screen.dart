@@ -35,6 +35,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _baseRateController;
   late TextEditingController _overtimeRateController;
   late TextEditingController _overtimeHoursController;
+  late TextEditingController _minimumRestHoursController;
+  late TextEditingController _shortRestBonusHoursController;
 
   final List<String> _languages = <String>[
     'system',
@@ -58,6 +60,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _baseRateController = TextEditingController();
     _overtimeRateController = TextEditingController();
     _overtimeHoursController = TextEditingController();
+    _minimumRestHoursController = TextEditingController();
+    _shortRestBonusHoursController = TextEditingController();
     _load();
     _refreshPro();
   }
@@ -79,6 +83,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _baseRateController.text = _numberText(loaded.defaultBaseRate);
     _overtimeRateController.text = _numberText(loaded.defaultOvertimeRate);
     _overtimeHoursController.text = _numberText(loaded.defaultOvertimeHours);
+    _minimumRestHoursController.text = _numberText(loaded.minimumRestHours);
+    _shortRestBonusHoursController.text = _numberText(loaded.shortRestBonusHours);
 
     if (!mounted) return;
 
@@ -131,9 +137,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _overtimeHoursController.text,
         _settings.defaultOvertimeHours,
       ),
+      minimumRestHours: _parseNumber(
+        _minimumRestHoursController.text,
+        _settings.minimumRestHours,
+      ),
+      shortRestBonusHours: _parseNumber(
+        _shortRestBonusHoursController.text,
+        _settings.shortRestBonusHours,
+      ),
     );
 
     await _settingsService.saveSettings(updated);
+    await ShiftsService().recalculateShortRest();
 
     if (!mounted) return;
 
@@ -240,6 +255,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _baseRateController.dispose();
     _overtimeRateController.dispose();
     _overtimeHoursController.dispose();
+    _minimumRestHoursController.dispose();
+    _shortRestBonusHoursController.dispose();
     super.dispose();
   }
 
@@ -561,6 +578,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     );
                                   });
                                 },
+                              ),
+                              const SizedBox(height: 12),
+                              _SwitchRow(
+                                title: 'Учитывать недосып между сменами',
+                                value: _settings.shortRestEnabled,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _settings = _settings.copyWith(shortRestEnabled: value);
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: _GlassTextField(
+                                      controller: _minimumRestHoursController,
+                                      label: 'Минимальный отдых, ч',
+                                      hint: '10',
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _GlassTextField(
+                                      controller: _shortRestBonusHoursController,
+                                      label: 'Начислить OT, ч',
+                                      hint: '1',
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
