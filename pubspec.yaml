@@ -49,5 +49,7 @@ flutter_native_splash:
   ios: true
   android: true
 flutter:
+  config:
+    enable-swift-package-manager: false
   uses-material-design: true
   generate: true
